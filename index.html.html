@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>별하람 시계</title>
+<style>
+:root{--bg:#fff4d6;--ink:#33271c;--card:#ffffff;--face:#fffdf5;--hh:#2b6cb0;--mh:#e53e3e;--ok:#2f9e5b;--no:#d6453d;--acc:#f2994a;--soft:#ffe6a8;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d2733;--ink:#f3ead9;--card:#2a3644;--face:#33414f;--hh:#63b3ed;--mh:#fc8181;--ok:#68d391;--no:#fc8181;--acc:#f6ad55;--soft:#3b4a5a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1d2733;--ink:#f3ead9;--card:#2a3644;--face:#33414f;--hh:#63b3ed;--mh:#fc8181;--ok:#68d391;--no:#fc8181;--acc:#f6ad55;--soft:#3b4a5a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Jua","Noto Sans KR","Apple SD Gothic Neo",sans-serif;padding:14px;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+h1{margin:4px 0 10px;font-size:clamp(1.5rem,6vw,2.1rem)}
+nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:14px}
+nav button,.btn{font:inherit;font-size:1.05rem;border:0;border-radius:14px;padding:10px 16px;background:var(--soft);color:var(--ink);cursor:pointer}
+nav button.on,.btn.go{background:var(--acc);color:#2b1a0c}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+main{width:min(100%,640px);background:var(--card);border-radius:22px;padding:18px;text-align:center}
+.q{font-size:clamp(1.3rem,5vw,1.8rem);margin:4px 0}
+.sub{opacity:.8;margin:2px 0 12px}
+.clk{width:min(72vw,300px);touch-action:none}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin:12px 0}
+.opt{font:inherit;font-size:1.4rem;background:var(--soft);color:var(--ink);border:3px solid transparent;border-radius:16px;padding:8px;cursor:pointer}
+.opt svg{width:100%}
+.opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 25%,var(--card))}
+.opt.no{border-color:var(--no)}
+.fb{min-height:3.2em;font-size:1.1rem;margin:8px 0;line-height:1.5}
+.fb b.ok{color:var(--ok)}.fb b.no{color:var(--no)}
+.prog{font-size:1rem;opacity:.8}
+.face{fill:var(--face);stroke:var(--ink);stroke-width:4}
+.num{fill:var(--ink);font-size:17px;text-anchor:middle;dominant-baseline:central;font-family:inherit}
+.tk{stroke:var(--ink)}
+.hh{stroke:var(--hh);stroke-width:8;stroke-linecap:round}
+.mh{stroke:var(--mh);stroke-width:4;stroke-linecap:round}
+.ghost{stroke:var(--ink);stroke-width:2;stroke-dasharray:4 4;opacity:.45}
+.legend{display:flex;gap:14px;justify-content:center;font-size:.95rem;margin-bottom:6px}
+.legend i{display:inline-block;width:22px;height:6px;border-radius:3px;vertical-align:middle;margin-right:4px}
+input[type=range]{width:min(80%,320px);accent-color:var(--mh)}
+.row{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:10px 0}
+.big{font-size:2.2rem}
+</style>
+</head>
+<body>
+<h1>⏰ 별하람 시계</h1>
+<nav id="nav"></nav>
+<main id="app"></main>
+
+<script>
+(function(){
+var app=document.getElementById('app'),nav=document.getElementById('nav');
+var rnd=function(a,b){return a+Math.floor(Math.random()*(b-a+1))};
+var pick=function(a){return a[rnd(0,a.length-1)]};
+var shuf=function(a){return a.map(function(x){return[Math.random(),x]}).sort(function(a,b){return a[0]-b[0]}).map(function(x){return x[1]})};
+var nx=function(h){return h%12+1};
+var hAng=function(h,m){return (h%12)*30+m/2};
+var tm=function(h,m){return m===0?h+'시 정각':h+'시 '+m+'분'};
+
+function face(){
+  var s='<circle class="face" cx="100" cy="100" r="95"/>';
+  for(var i=0;i<60;i++){var a=i*6*Math.PI/180,r1=i%5?88:82,r2=92;
+    s+='<line class="tk" stroke-width="'+(i%5?1:2.5)+'" x1="'+(100+r1*Math.sin(a))+'" y1="'+(100-r1*Math.cos(a))+'" x2="'+(100+r2*Math.sin(a))+'" y2="'+(100-r2*Math.cos(a))+'"/>';}
+  for(var n=1;n<=12;n++){var b=n*30*Math.PI/180;s+='<text class="num" x="'+(100+66*Math.sin(b))+'" y="'+(100-66*Math.cos(b))+'">'+n+'</text>';}
+  return s;
+}
+function hands(ha,m,extra){
+  return (extra||'')+'<line class="mh" x1="100" y1="100" x2="100" y2="20" transform="rotate('+(m*6)+' 100 100)"/>'+
+  '<line class="hh" id="hh" x1="100" y1="100" x2="100" y2="50" transform="rotate('+ha+' 100 100)"/><circle cx="100" cy="100" r="7" fill="var(--ink)"/>';
+}
+function clock(h,m,ha,cls,extra){
+  return '<svg class="'+(cls||'')+'" viewBox="0 0 200 200" role="img" aria-label="'+h+'시 '+m+'분 시계">'+face()+hands(ha==null?hAng(h,m):ha,m,extra)+'</svg>';
+}
+var legend='<div class="legend"><span><i style="background:var(--hh)"></i>짧은바늘(시침)</span><span><i style="background:var(--mh)"></i>긴바늘(분침)</span></div>';
+
+function hint(h,m){
+  var n=nx(h);
+  if(m===0)return '정각에는 짧은바늘이 '+h+'를 바로 가리켜요.';
+  if(m<30)return m+'분에는 짧은바늘이 '+h+'에서 '+n+' 쪽으로 조금 갔어요. 아직 '+h+'에 더 가까워요.';
+  if(m===30)return '30분에는 짧은바늘이 '+h+'와 '+n+'의 딱 중간이에요.';
+  return m+'분에는 짧은바늘이 '+n+'에 거의 다 왔어요. '+n+'에 더 가까워도 시각은 아직 '+h+'시예요!';
+}
+
+var tabs=[['learn','🔍 살펴보기'],['detect','🕵️ 시침 탐정'],['read','👀 시계 읽기'],['drag','✋ 시침 놓기']];
+var cur='learn';
+tabs.forEach(function(t){var b=document.createElement('button');b.textContent=t[1];b.dataset.t=t[0];b.onclick=function(){go(t[0])};nav.appendChild(b)});
+function go(t){cur=t;[].forEach.call(nav.children,function(b){b.classList.toggle('on',b.dataset.t===t)});({learn:learn,detect:function(){quiz('detect')},read:function(){quiz('read')},drag:function(){quiz('drag')}})[t]()}
+
+/* 살펴보기 */
+function learn(){
+  var h=3,m=20;
+  app.innerHTML='<p class="q">긴바늘을 움직이면 짧은바늘은 어떻게 될까요?</p>'+legend+'<div id="c"></div><div class="big" id="d"></div>'+
+  '<div class="row"><button class="btn" id="hm">시 −</button><button class="btn" id="hp">시 +</button></div>'+
+  '<div class="row"><input type="range" id="r" min="0" max="59" step="5" value="20" aria-label="분"></div>'+
+  '<div class="row">'+[0,10,20,30,40,50].map(function(v){return '<button class="btn" data-m="'+v+'">'+(v===0?'정각':v+'분')+'</button>'}).join('')+'</div>'+
+  '<div class="fb" id="f"></div>';
+  function draw(){
+    var n=nx(h),g='<line class="ghost" x1="100" y1="100" x2="100" y2="38" transform="rotate('+(h%12*30)+' 100 100)"/><line class="ghost" x1="100" y1="100" x2="100" y2="38" transform="rotate('+(n%12*30)+' 100 100)"/>';
+    document.getElementById('c').innerHTML=clock(h,m,null,'clk',g);
+    document.getElementById('d').textContent=tm(h,m);
+    document.getElementById('f').textContent=hint(h,m)+'  (점선은 '+h+'와 '+n+'의 위치예요)';
+    document.getElementById('r').value=m;
+  }
+  document.getElementById('hm').onclick=function(){h=h===1?12:h-1;draw()};
+  document.getElementById('hp').onclick=function(){h=nx(h);draw()};
+  document.getElementById('r').oninput=function(){m=+this.value;draw()};
+  [].forEach.call(app.querySelectorAll('[data-m]'),function(b){b.onclick=function(){m=+b.dataset.m;draw()}});
+  draw();
+}
+
+/* 퀴즈 공통 */
+var N=8;
+function quiz(kind){
+  var q=0,sc=0;
+  function next(){
+    if(q>=N)return done();
+    q++;
+    var h=rnd(1,12),m=pick([0,10,20,30,40,50]);
+    if(kind==='detect')detect(h,m);else if(kind==='read')read(h,m);else drag(h,m);
+  }
+  function head(t,s){return '<div class="prog">'+q+' / '+N+' · 점수 '+sc+'</div><p class="q">'+t+'</p><p class="sub">'+s+'</p>'}
+  function after(ok,h,m,btnId){
+    var f=document.getElementById('f');
+    f.innerHTML=(ok?'<b class="ok">정답! 🎉</b> ':'<b class="no">아쉬워요 🐾</b> ')+tm(h,m)+': '+hint(h,m);
+    if(ok)sc++;
+    var b=document.createElement('button');b.className='btn go';b.textContent=q>=N?'결과 보기':'다음 문제';b.onclick=next;
+    f.appendChild(document.createElement('br'));f.appendChild(b);b.focus();
+  }
+  function choices(list,correct,h,m,isClock){
+    var o=document.getElementById('o');
+    list.forEach(function(it,i){
+      var b=document.createElement('button');b.className='opt';b.innerHTML=it;
+      b.onclick=function(){
+        [].forEach.call(o.children,function(x){x.disabled=true});
+        var ok=i===correct;b.classList.add(ok?'ok':'no');
+        if(!ok)o.children[correct].classList.add('ok');
+        after(ok,h,m);
+      };
+      o.appendChild(b);
+    });
+  }
+  function detect(h,m){
+    var ca=hAng(h,m),angs=m===0?[ca,nx(h)%12*30,((h+11)%12)*30]:[ca,h%12*30,nx(h)%12*30];
+    var items=shuf(angs);
+    app.innerHTML=head(tm(h,m),'짧은바늘(시침)이 알맞게 놓인 시계를 찾아요')+'<div class="opts" id="o"></div><div class="fb" id="f"></div>';
+    choices(items.map(function(a){return clock(h,m,a)}),items.indexOf(ca),h,m);
+  }
+  function read(h,m){
+    var sw={0:30,10:50,20:40,30:15,40:20,50:10},t=function(a,b){return b===0?a+'시 정각':a+'시 '+b+'분'};
+    var items=shuf([t(h,m),t(nx(h),m),t(h,sw[m])]);
+    app.innerHTML=head('몇 시 몇 분일까요?','시계를 잘 보고 골라요')+legend+clock(h,m,null,'clk')+'<div class="opts" id="o"></div><div class="fb" id="f"></div>';
+    choices(items,items.indexOf(t(h,m)),h,m);
+  }
+  function drag(h,m){
+    var target=hAng(h,m),a=(h%12*30+150)%360,done=false;
+    app.innerHTML=head(tm(h,m)+'을 만들어요','파란 짧은바늘(시침)을 끌어서 알맞은 곳에 놓아요')+
+    '<div id="c">'+clock(h,m,a,'clk')+'</div><div class="row"><button class="btn go" id="ck">확인</button></div><div class="fb" id="f"></div>';
+    var svg=app.querySelector('svg'),hh=svg.querySelector('#hh'),drag=false;
+    function set(e){
+      var r=svg.getBoundingClientRect(),x=e.clientX-(r.left+r.width/2),y=e.clientY-(r.top+r.height/2);
+      a=(Math.atan2(x,-y)*180/Math.PI+360)%360;
+      hh.setAttribute('transform','rotate('+a+' 100 100)');
+    }
+    svg.addEventListener('pointerdown',function(e){if(done)return;drag=true;svg.setPointerCapture(e.pointerId);set(e)});
+    svg.addEventListener('pointermove',function(e){if(drag&&!done)set(e)});
+    svg.addEventListener('pointerup',function(){drag=false});
+    document.getElementById('ck').onclick=function(){
+      if(done)return;done=true;
+      var d=Math.abs(((a-target+540)%360)-180),r=a%30,dh=Math.min(r,30-r),ok=d<=8&&(m%30===0||d<dh);
+      if(!ok)hh.setAttribute('transform','rotate('+target+' 100 100)');
+      this.remove();after(ok,h,m);
+    };
+  }
+  function done(){
+    var s=sc>=7?'🌟🌟🌟':sc>=5?'🌟🌟':'🌟';
+    app.innerHTML='<p class="big">'+s+'</p><p class="q">'+N+'문제 중 '+sc+'문제 정답!</p><p class="sub">'+(sc>=7?'시침 박사님이에요!':'한 번 더 하면 더 잘할 수 있어요!')+'</p><button class="btn go" id="again">다시 하기</button>';
+    document.getElementById('again').onclick=function(){quiz(kind)};
+  }
+  next();
+}
+go('learn');
+})();
+</script>
+</body>
+</html>
